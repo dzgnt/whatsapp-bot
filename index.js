@@ -1,28 +1,25 @@
-const { makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys')
+const { default: makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys')
 const pino = require('pino')
+const qrcode = require('qrcode-terminal')
 
 async function startBot() {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info')
 
     const sock = makeWASocket({
         logger: pino({ level: 'silent' }),
-        printQRInTerminal: true,
         auth: state
     })
 
     sock.ev.on('creds.update', saveCreds)
 
-    sock.ev.on('messages.upsert', async ({ messages }) => {
-        const msg = messages[0]
-        if (!msg.message) return
-        const from = msg.key.remoteJid
-        const text = msg.message.conversation || msg.message.extendedTextMessage?.text
-
-        if (text) {
-            console.log(`Pesan dari ${from}: ${text}`)
-            if (text.toLowerCase() === 'halo') {
-                await sock.sendMessage(from, { text: 'Hai Dzjet 👋, aku bot Railway nih!' })
-            }
+    sock.ev.on('connection.update', (update) => {
+        const { connection, qr } = update
+        if (qr) {
+            console.log('📲 Scan QR berikut pakai WhatsApp (Linked Devices):')
+            qrcode.generate(qr, { small: true })  // ✅ QR langsung muncul di terminal
+        }
+        if (connection === 'open') {
+            console.log('✅ Bot sudah terhubung ke WhatsApp!')
         }
     })
 }
